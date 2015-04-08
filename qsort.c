@@ -41,7 +41,7 @@ int *init_array(int N)  {
   return array;
 }
 
-// Vverify the result.
+// Verify the result.
 //
 void verify_array(int *array, int N) {
   for (int i = 0; i < N-1; i++) {
