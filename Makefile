@@ -15,5 +15,7 @@ qsort: qsort.c
 	$(CC) -std=c99 -g -o qsort qsort.c
 
 qsortpthd: qsortpthd.c
+	clear
+	clear
 	$(CC) $(FLAGS) -o qsortpthd qsortpthd.c
 

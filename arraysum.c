@@ -37,16 +37,16 @@ void slave(long tid) {
   printf("Thread %ld started on %d\n", tid, sched_getcpu());
   int i, psum = 0;
   do {
-    pthread_mutex_lock(&sumLock);    	// read and increment idx
+//    pthread_mutex_lock(&sumLock);    	// read and increment idx
     i = idx++;                        	
-    pthread_mutex_unlock(&sumLock);     
+//    pthread_mutex_unlock(&sumLock);     
     if (i < arraySize)                  // add one array element
       psum += array[i];
   } while (i < arraySize);
 
-  pthread_mutex_lock(&sumLock);      	// add local psum to global sum 
+//  pthread_mutex_lock(&sumLock);      	// add local psum to global sum 
   sum += psum;
-  pthread_mutex_unlock(&sumLock);
+//  pthread_mutex_unlock(&sumLock);
 } 
 
 // The main routine
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
   }
   pthread_t thread[numThreads];
   array = init_array(arraySize); 	// initialize array 
-  pthread_mutex_init(&sumLock, NULL);   // initialize mutex 
+//  pthread_mutex_init(&sumLock, NULL);   // initialize mutex 
 
   int nprocs = sysconf(_SC_NPROCESSORS_ONLN);
   cpu_set_t cpuset;
