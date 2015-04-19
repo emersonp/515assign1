@@ -5,6 +5,15 @@
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
+#include <sched.h>		// for getting cpu id
+//#include <unistd.h>             // for getting nprocs
+
+//-------------------------------
+// Debug Variable, for TA
+//-------------------------------
+
+int debug = 0;
+
 
 //-------------------------------
 // Task and queue representations
@@ -23,9 +32,6 @@ struct queue_
   task_t *tail;
   int length;   // current number of tasks
 } ; 
-
-int debug = 1;
-
 
 //-------------------------------
 // Global initializations
@@ -48,6 +54,7 @@ pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 
 void push_queue(task_t *task);
 void print_array();
+int sched_getcpu();
 
 //-------------------------------
 // Functions
@@ -125,6 +132,7 @@ void add_task(int low, int high) {
   push_queue(t);
 }
 
+// Push Queue
 void push_queue(task_t *task) {
   if (debug) { printf("Pushing task (tail) %d to %d.\n", task->low, task->high); }
   
@@ -185,14 +193,11 @@ void quicksort(int low, int high) {
   add_task(low, middle - 1);
   quicksort(middle + 1, high);
 }
-  
 
+// Worker
 void worker(long wid) {
-  int loopcount = 0;
-  if (debug) { printf("-->Worker %ld started.\n", wid); }
+  printf("------>Worker %ld started on CPU %d.\n", wid, sched_getcpu() );
   while (!check_completed()) {
-    loopcount++;
-    if (loopcount > 1) { printf("##### MULTIPLE LOOPS.\n"); }
 
     pthread_mutex_lock(&queue_mutex);
     
@@ -215,6 +220,7 @@ void worker(long wid) {
   }
 }
 
+// Array Functions
 void verify_array() {
   if (debug) { printf("Verifying array...\n"); }
   for (int index = 0; index < N - 1; index++) {
@@ -223,7 +229,7 @@ void verify_array() {
       return;
     }
   }
-  printf("Success!\n");
+  printf("\nSuccess!\n");
   print_array();
 }
 
@@ -236,6 +242,11 @@ void randomize_array() {
 }
 
 void print_array() {
+  if (!check_completed()) {
+    printf("\nRandomized Array\n\n");
+  } else {
+    printf("\nSorted Array\n\n");
+  }
   for (int index = 0; index < N; index++) {
     printf("%d ", array[index]);
   }
