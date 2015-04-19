@@ -54,15 +54,17 @@ void print_array();
 //-------------------------------
 
 int check_completed() {
+  int complete_check;
   pthread_mutex_lock(&completed_mutex);
-  int complete_check = (completed == N);
+  complete_check = (completed == N);
   if (debug) {
     if (complete_check) {
       printf("Complete Check Passed!\n");
       print_array();
     }
   }
-  pthread_mutex_unlock(&completed_mutex); 
+  pthread_mutex_unlock(&completed_mutex);
+  pthread_cond_broadcast(&queue_cond);
   return complete_check;
 }
 
@@ -120,17 +122,18 @@ void add_task(int low, int high) {
   t->high = high;
   t->next = NULL;
   if (debug) { printf("Created task %d to %d.\n", low, high); }
-  pthread_mutex_lock(&queue_mutex);
   push_queue(t);
-  pthread_mutex_unlock(&queue_mutex);
 }
 
 void push_queue(task_t *task) {
   if (debug) { printf("Pushing task (tail) %d to %d.\n", task->low, task->high); }
+  
+  int broadcast = 0;
+  pthread_mutex_lock(&queue_mutex);
 
   if (quick_queue.tail == NULL) {
+    broadcast = 1;
     quick_queue.tail = quick_queue.head = task;
-    pthread_cond_broadcast(&queue_cond);
   } else {
     quick_queue.tail->next = task;
     quick_queue.tail = quick_queue.tail->next;
@@ -143,14 +146,23 @@ void push_queue(task_t *task) {
     printf("Current queue head: %d to %d.\n", quick_queue.head->low, quick_queue.head->high);
     printf("Current queue tail: %d to %d.\n", quick_queue.tail->low, quick_queue.tail->high);
   }
+  
+  pthread_mutex_unlock(&queue_mutex);
+  
+  if (broadcast) {
+    if (debug) { printf("Broadcast queue is free.\n"); }
+    pthread_cond_broadcast(&queue_cond);
+  }
 }
 
 // Pop Task, queue_mutex should be locked
 task_t* pop_task() {
-  if (debug) { printf("Popping task (head) %d to %d.\n", quick_queue.head->low, quick_queue.head->high); }
 
   task_t *temp_task = NULL;
-  if (quick_queue.length > 0) {
+  if (quick_queue.length > 0)
+    {
+    if (debug) { printf("Popping task (head) %d to %d.\n", quick_queue.head->low, quick_queue.head->high); }
+  
     temp_task = quick_queue.head;
     if (quick_queue.head == quick_queue.tail) {
       quick_queue.head = quick_queue.tail = NULL;
@@ -182,23 +194,24 @@ void worker(long wid) {
     loopcount++;
     if (loopcount > 1) { printf("##### MULTIPLE LOOPS.\n"); }
 
-    task_t *task = malloc(sizeof(task_t));
-    
     pthread_mutex_lock(&queue_mutex);
     
     while ( quick_queue.length == 0 && !check_completed() ) {
       if (debug) { printf("Waiting on queue condition.\n"); }
       pthread_cond_wait(&queue_cond, &queue_mutex);
     }
-    task = pop_task();
+
+    task_t *task = pop_task();
     
     pthread_mutex_unlock(&queue_mutex);
     
-    if (debug) { printf("Worker %ld starting on range %d to %d.\n", wid, task->low, task->high); }
+    if (task) {
+      if (debug) { printf("Worker %ld starting on range %d to %d.\n", wid, task->low, task->high); }
     
-    quicksort(task->low, task->high);
+      quicksort(task->low, task->high);
     
-    free(task);
+      free(task);
+    }
   }
 }
 
@@ -242,13 +255,13 @@ int main(int argc, char **argv) {
   array = malloc(N * sizeof(int));
   randomize_array();
 
-  task_t first_task;
-  first_task.low = 0;
-  first_task.high = N - 1;
-  first_task.next = NULL;
+  task_t *first_task = malloc(sizeof(task_t));
+  first_task->low = 0;
+  first_task->high = N - 1;
+  first_task->next = NULL;
   
-  quick_queue.head = &first_task;
-  quick_queue.tail = &first_task;
+  quick_queue.head = first_task;
+  quick_queue.tail = first_task;
   quick_queue.length = 1;
 
   // create numThreads-1 worker threads, each executes a copy
@@ -257,7 +270,7 @@ int main(int argc, char **argv) {
   //
 
   for (long k = 0; k < numThreads - 1; k++) {
-    pthread_create(&thread[k], NULL, (void*) &worker, (void*)k);
+    pthread_create(&thread[k], NULL, (void*) worker, (void*)k);
   }
 
   // the main thread also runs a copy of the worker() routine;
