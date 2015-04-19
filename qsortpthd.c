@@ -16,12 +16,13 @@ typedef struct task_t {
   struct task_t *next;         // and a pointer to next task
 } task_t; 
 
-typedef struct queue_t
+typedef struct queue_ queue_t;
+struct queue_
 {
   task_t *head;   
   task_t *tail;
   int length;   // current number of tasks
-} queue_t; 
+} ; 
 
 int debug = 1;
 
@@ -34,7 +35,7 @@ int *array = NULL;
 int N = 0;
 int completed = 0;
 int MIN_SIZE = 10;
-queue_t quick_queue;
+queue_t quick_queue = { .head = NULL, .tail = NULL, .length = 0 };
 
 pthread_mutex_t queue_mutex;
 pthread_mutex_t array_mutex;
@@ -55,7 +56,12 @@ void print_array();
 int check_completed() {
   pthread_mutex_lock(&completed_mutex);
   int complete_check = (completed == N);
-  if (debug) { if (complete_check) { printf("Complete Check Passed!\n"); } }
+  if (debug) {
+    if (complete_check) {
+      printf("Complete Check Passed!\n");
+      print_array();
+    }
+  }
   pthread_mutex_unlock(&completed_mutex); 
   return complete_check;
 }
@@ -110,7 +116,6 @@ int partition(int low, int high) {
 
 void add_task(int low, int high) {
   task_t *t = malloc(sizeof(task_t));
-  //task_t t = {.low = low, .high = high}
   t->low = low;
   t->high = high;
   t->next = NULL;
@@ -118,22 +123,26 @@ void add_task(int low, int high) {
   pthread_mutex_lock(&queue_mutex);
   push_queue(t);
   pthread_mutex_unlock(&queue_mutex);
-  //pthread_cond_signal(&queue_cond);
 }
 
 void push_queue(task_t *task) {
   if (debug) { printf("Pushing task (tail) %d to %d.\n", task->low, task->high); }
+
   if (quick_queue.tail == NULL) {
-    quick_queue.tail = task;
-    quick_queue.head = task;
+    quick_queue.tail = quick_queue.head = task;
     pthread_cond_broadcast(&queue_cond);
   } else {
     quick_queue.tail->next = task;
     quick_queue.tail = quick_queue.tail->next;
-    quick_queue.length++;
   }
-  if (debug) { printf("Current queue head: %d to %d.\n", quick_queue.head->low, quick_queue.head->high); }
-  if (debug) { printf("Current queue tail: %d to %d.\n", quick_queue.tail->low, quick_queue.tail->high); }
+
+  quick_queue.length++;
+
+  if (debug) {
+    printf("Queue Length: %d\n", quick_queue.length);
+    printf("Current queue head: %d to %d.\n", quick_queue.head->low, quick_queue.head->high);
+    printf("Current queue tail: %d to %d.\n", quick_queue.tail->low, quick_queue.tail->high);
+  }
 }
 
 task_t* pop_task() {
@@ -145,6 +154,7 @@ task_t* pop_task() {
     quick_queue.tail = NULL;
   }
   quick_queue.length--;
+  if (debug) { printf("Queue Length: %d\n", quick_queue.length); }
   return temp_task;
 }
 
@@ -170,7 +180,7 @@ void worker(long wid) {
     
     pthread_mutex_lock(&queue_mutex);
     
-    while ( quick_queue.head == NULL && !check_completed() ) {
+    while ( quick_queue.length == 0 && !check_completed() ) {
       if (debug) { printf("Waiting on queue condition.\n"); }
       pthread_cond_wait(&queue_cond, &queue_mutex);
     }
@@ -199,6 +209,7 @@ void verify_array() {
 }
 
 void randomize_array() {
+  srand( time(NULL) );
   for (int index = 0; index < N; index++) {
     array[index] = rand() % N;
   }
@@ -232,6 +243,7 @@ int main(int argc, char **argv) {
   
   quick_queue.head = &first_task;
   quick_queue.tail = &first_task;
+  quick_queue.length = 1;
 
   // create numThreads-1 worker threads, each executes a copy
   // of the worker() routine; each copy has an integer id,
@@ -239,7 +251,7 @@ int main(int argc, char **argv) {
   //
 
   for (long k = 0; k < numThreads - 1; k++) {
-    pthread_create(&thread[k], NULL, (void*)worker, (void*)k);
+    pthread_create(&thread[k], NULL, (void*) &worker, (void*)k);
   }
 
   // the main thread also runs a copy of the worker() routine;
