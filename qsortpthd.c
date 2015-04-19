@@ -145,19 +145,25 @@ void push_queue(task_t *task) {
   }
 }
 
+// Pop Task, queue_mutex should be locked
 task_t* pop_task() {
   if (debug) { printf("Popping task (head) %d to %d.\n", quick_queue.head->low, quick_queue.head->high); }
 
-  task_t *temp_task = quick_queue.head;
-  quick_queue.head = quick_queue.head->next;
-  if (quick_queue.head == NULL) {
-    quick_queue.tail = NULL;
-  }
+  task_t *temp_task = NULL;
+  if (quick_queue.length > 0) {
+    temp_task = quick_queue.head;
+    if (quick_queue.head == quick_queue.tail) {
+      quick_queue.head = quick_queue.tail = NULL;
+    } else {
+    quick_queue.head = quick_queue.head->next;
+    }
   quick_queue.length--;
+  }
   if (debug) { printf("Queue Length: %d\n", quick_queue.length); }
   return temp_task;
 }
 
+// Quicksort
 void quicksort(int low, int high) {
   if (high - low < MIN_SIZE) {
     bubble_sort(low, high);
