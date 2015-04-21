@@ -5,15 +5,14 @@
 #include <stdio.h>
 #include <time.h>
 #include <pthread.h>
-#include <sched.h>		// for getting cpu id
-//#include <unistd.h>             // for getting nprocs
+#include <sched.h>    // for getting cpu id
 
 //-------------------------------
 // Debug Variable, for TA
 //-------------------------------
 
 int debug = 0;
-
+int arrayprinting = 0;
 
 //-------------------------------
 // Task and queue representations
@@ -38,9 +37,10 @@ struct queue_
 //-------------------------------
 
 int *array = NULL;
-int N = 0;
+int arraySize = 0;
 int completed = 0;
 int MIN_SIZE = 10;
+int numThreads = 1;
 queue_t quick_queue = { .head = NULL, .tail = NULL, .length = 0 };
 
 pthread_mutex_t queue_mutex;
@@ -63,7 +63,7 @@ int sched_getcpu();
 int check_completed() {
   int complete_check;
   pthread_mutex_lock(&completed_mutex);
-  complete_check = (completed == N);
+  complete_check = (completed == arraySize);
   if (debug) {
     if (complete_check) {
       printf("Complete Check Passed!\n");
@@ -83,6 +83,9 @@ void add_completed(int num) {
 }
 
 void swap(int x, int y) {
+	if (x == y) {
+		return;
+	}
   pthread_mutex_lock(&array_mutex);
   int tmp = array[x];
   array[x] = array[y];
@@ -132,7 +135,7 @@ void add_task(int low, int high) {
   push_queue(t);
 }
 
-// Push Queue
+// Push Task onto Queue
 void push_queue(task_t *task) {
   if (debug) { printf("Pushing task (tail) %d to %d.\n", task->low, task->high); }
   
@@ -223,34 +226,36 @@ void worker(long wid) {
 // Array Functions
 void verify_array() {
   if (debug) { printf("Verifying array...\n"); }
-  for (int index = 0; index < N - 1; index++) {
+  for (int index = 0; index < arraySize - 1; index++) {
     if (array[index] > array[index + 1]) {
       printf("ERROR: Array[%d] == %d, Array[%d] == %d.\n", index, array[index], index + 1, array[index + 1]) ;
       return;
     }
   }
-  printf("\nSuccess!\n");
+  printf("\nSuccess!\n\n");
   print_array();
 }
 
 void randomize_array() {
   srand( time(NULL) );
-  for (int index = 0; index < N; index++) {
-    array[index] = rand() % N;
+  for (int index = 0; index < arraySize; index++) {
+    array[index] = rand() % arraySize;
   }
   print_array();
 }
 
 void print_array() {
-  if (!check_completed()) {
-    printf("\nRandomized Array\n\n");
-  } else {
-    printf("\nSorted Array\n\n");
-  }
-  for (int index = 0; index < N; index++) {
-    printf("%d ", array[index]);
-  }
-  printf("\n\n");
+  if (arrayprinting) {
+		if (!check_completed()) {
+			printf("\nRandomized Array\n\n");
+		} else {
+			printf("\nSorted Array\n\n");
+		}
+		for (int index = 0; index < arraySize; index++) {
+			printf("%d ", array[index]);
+		}
+		printf("\n\n");
+	}
 }
 
 //-------------------------------
@@ -258,17 +263,29 @@ void print_array() {
 //-------------------------------
 int main(int argc, char **argv) {
   // read in command-line arguments, N and numThreads;
-  int numThreads = 4;
-  N = 100;
+
+	if (argc < 2) {
+		printf("Usage: ./qsortpthd <arraySize> [<numThreads>]\n");
+		exit(0);
+	} else if (argc > 2) {
+		if ((numThreads = atoi(argv[2])) < 1) {
+			printf("<numThreads> must be greater than 0.\n");
+			exit(0);
+		}
+	}
+	if ((arraySize = atoi(argv[1])) < 1) {
+		printf("<arraySize> must be greater than 0.\n");
+		exit(0);
+	}
   pthread_t thread[numThreads];
 
   // initialize array, queue, and other shared variables
-  array = malloc(N * sizeof(int));
+  array = malloc(arraySize * sizeof(int));
   randomize_array();
 
   task_t *first_task = malloc(sizeof(task_t));
   first_task->low = 0;
-  first_task->high = N - 1;
+  first_task->high = arraySize - 1;
   first_task->next = NULL;
   
   quick_queue.head = first_task;
@@ -286,6 +303,7 @@ int main(int argc, char **argv) {
 
   // the main thread also runs a copy of the worker() routine;
   // its copy has the last id, numThreads-1
+	printf("\n\n");
   worker(numThreads - 1);
 
   // the main thread waits for worker threads to join back
@@ -295,5 +313,8 @@ int main(int argc, char **argv) {
 
   // verify the result
   verify_array();
+
+  // Clean up
+  free(array);
 }
 
