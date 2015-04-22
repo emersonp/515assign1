@@ -19,7 +19,7 @@ int arraySize;                  // array size, given by user
 int numThreads = 1;             // default number of threads 
 int *array;                     // shared array 
 int sum = 0, idx = 0;           // global sum and idx 
-pthread_mutex_t sumLock;   
+//pthread_mutex_t sumLock;   
 
 // Initialize array to [1,2,...,size]
 //

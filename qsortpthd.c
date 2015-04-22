@@ -1,3 +1,6 @@
+// Copyright (c) 2015 Parker Harris Emerson
+// Homework 1 for Prof. Li's Parallel Programming Course
+
 // A global array of size N contains the integers to be sorted.
 // A global task queue is initialized with the sort range [0,N-1].
 
