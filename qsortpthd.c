@@ -44,7 +44,6 @@ int numThreads = 1;
 queue_t quick_queue = { .head = NULL, .tail = NULL, .length = 0 };
 
 pthread_mutex_t queue_mutex;
-pthread_mutex_t array_mutex;
 pthread_mutex_t completed_mutex;
 pthread_cond_t queue_cond = PTHREAD_COND_INITIALIZER;
 
@@ -86,11 +85,9 @@ void swap(int x, int y) {
 	if (x == y) {
 		return;
 	}
-  pthread_mutex_lock(&array_mutex);
   int tmp = array[x];
   array[x] = array[y];
   array[y] = tmp;
-  pthread_mutex_unlock(&array_mutex);
 }
 
 void bubble_sort(int low, int high) {
