@@ -199,7 +199,7 @@ void quicksort(int low, int high) {
 
 // Worker
 void worker(long wid) {
-  printf("------>Worker %ld started on CPU %d.\n", wid, sched_getcpu() );
+  //printf("------>Worker %ld started on CPU %d.\n", wid, sched_getcpu() );
   while (!check_completed()) {
 
     pthread_mutex_lock(&queue_mutex);
